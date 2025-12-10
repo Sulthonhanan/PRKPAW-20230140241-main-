@@ -6,33 +6,29 @@ const { Op } = require("sequelize");
 // ==========================
 exports.CheckIn = async (req, res) => {
   try {
-    // ==== VALIDASI AUTH ====
     if (!req.user || !req.user.id) {
       return res.status(401).json({
-        message: "Unauthorized - token tidak valid atau login sudah kadaluarsa"
+        message: "Unauthorized - token tidak valid"
       });
     }
 
     const userId = req.user.id;
     const { latitude, longitude } = req.body;
 
-    // ==== VALIDASI DATA ====
     if (!latitude || !longitude) {
       return res.status(400).json({
-        message: "Lokasi (latitude & longitude) wajib diisi"
+        message: "Lokasi wajib diisi"
       });
     }
 
-    // ==== VALIDASI SATU KALI PER HARI ====
+    // Validasi 1x per hari
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const existing = await Presensi.findOne({
       where: {
         userId,
-        checkIn: {
-          [Op.gte]: today
-        }
+        checkIn: { [Op.gte]: today }
       }
     });
 
@@ -42,87 +38,68 @@ exports.CheckIn = async (req, res) => {
       });
     }
 
-    // ==== SIMPAN CHECK-IN ====
-    const buktiFoto = req.file ? req.file.path : null;
+    // Foto dari multer
+    const buktiFoto = req.file ? req.file.filename : null;
+
     const newRecord = await Presensi.create({
-    userId,
-    checkIn: new Date(),
-    latitude: parseFloat(latitude),
-    longitude: parseFloat(longitude),
-    buktiFoto: buktiFoto,     // <— TAMBAHKAN INI
-    checkOut: null
+      userId,
+      checkIn: new Date(),
+      latitude: parseFloat(latitude),
+      longitude: parseFloat(longitude),
+      buktiFoto: buktiFoto,
+      checkOut: null
     });
 
     return res.status(201).json({
-      message: "Check-in berhasil ✅",
+      message: "Check-in berhasil",
       data: newRecord
     });
 
   } catch (error) {
     console.error("CHECK-IN ERROR DETAIL:", error);
     return res.status(500).json({
-      message: "ERROR DETAIL",
-      name: error.name,
-      detail: error.message,
-      errors: error.errors
+      message: "ERROR",
+      detail: error.message
     });
   }
 };
-
 
 // ==========================
 // CHECK-OUT
 // ==========================
 exports.CheckOut = async (req, res) => {
   try {
-    // ==== VALIDASI AUTH ====
     if (!req.user || !req.user.id) {
-      return res.status(401).json({
-        message: "Unauthorized - token tidak valid atau login sudah kadaluarsa"
-      });
+      return res.status(401).json({ message: "Unauthorized" });
     }
 
     const userId = req.user.id;
 
-    // ==== CARI DATA YANG BELUM CHECK-OUT ====
     const record = await Presensi.findOne({
-      where: {
-        userId,
-        checkOut: null
-      },
+      where: { userId, checkOut: null },
       order: [["checkIn", "DESC"]]
     });
 
     if (!record) {
       return res.status(400).json({
-        message: "Anda belum check-in atau sudah check-out"
+        message: "Belum check-in atau sudah check-out"
       });
     }
 
-    // ==== UPDATE CHECK-OUT ====
-    await record.update({
-      checkOut: new Date()
-    });
+    await record.update({ checkOut: new Date() });
 
     return res.json({
-      message: "Check-out berhasil ✅",
+      message: "Check-out berhasil",
       data: record
     });
 
   } catch (error) {
-    console.error("CHECK-OUT ERROR DETAIL:", error);
-    return res.status(500).json({
-      message: "ERROR DETAIL",
-      name: error.name,
-      detail: error.message,
-      errors: error.errors
-    });
+    return res.status(500).json({ message: error.message });
   }
 };
 
-
 // ==========================
-// DELETE PRESENSI
+// DELETE
 // ==========================
 exports.deletePresensi = async (req, res) => {
   try {
@@ -130,31 +107,19 @@ exports.deletePresensi = async (req, res) => {
 
     const record = await Presensi.findByPk(id);
     if (!record) {
-      return res.status(404).json({
-        message: "Data presensi tidak ditemukan"
-      });
+      return res.status(404).json({ message: "Data tidak ditemukan" });
     }
 
     await record.destroy();
-
-    return res.json({
-      message: "Data presensi berhasil dihapus ✅"
-    });
+    return res.json({ message: "Data berhasil dihapus" });
 
   } catch (error) {
-    console.error("DELETE ERROR DETAIL:", error);
-    return res.status(500).json({
-      message: "ERROR DETAIL",
-      name: error.name,
-      detail: error.message,
-      errors: error.errors
-    });
+    return res.status(500).json({ message: error.message });
   }
 };
 
-
 // ==========================
-// UPDATE PRESENSI
+// UPDATE
 // ==========================
 exports.updatePresensi = async (req, res) => {
   try {
@@ -162,41 +127,17 @@ exports.updatePresensi = async (req, res) => {
 
     const record = await Presensi.findByPk(id);
     if (!record) {
-      return res.status(404).json({
-        message: "Data presensi tidak ditemukan"
-      });
+      return res.status(404).json({ message: "Data tidak ditemukan" });
     }
 
     await record.update(req.body);
 
     return res.json({
-      message: "Presensi berhasil diperbarui ✅",
+      message: "Data berhasil diperbarui",
       data: record
     });
 
   } catch (error) {
-    console.error("UPDATE ERROR DETAIL:", error);
-    return res.status(500).json({
-      message: "ERROR DETAIL",
-      name: error.name,
-      detail: error.message,
-      errors: error.errors
-    });
+    return res.status(500).json({ message: error.message });
   }
 };
-const multer = require('multer');
-const path = require('path');
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename: (req, file, cb) => {
-    cb(null, `${req.user.id}-${Date.now()}${path.extname(file.originalname)}`);
-  }
-});
-
-const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) cb(null, true);
-  else cb(new Error('File harus gambar'), false);
-};
-
-exports.upload = multer({ storage, fileFilter });

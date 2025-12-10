@@ -5,22 +5,23 @@ import Webcam from "react-webcam";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Fix icon Leaflet
 import L from "leaflet";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
+// Fix Leaflet Icon
 let DefaultIcon = L.icon({
   iconUrl: markerIcon,
-  shadowUrl: markerShadow
+  shadowUrl: markerShadow,
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
 function PresensiPage() {
   const [coords, setCoords] = useState(null);
-  const [image, setImage] = useState(null); // FOTO SELFIE
+  const [image, setImage] = useState(null);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
 
   const webcamRef = useRef(null);
   const token = localStorage.getItem("token");
@@ -49,13 +50,43 @@ function PresensiPage() {
     getLocation();
   }, []);
 
-  // Capture Foto
+  // Capture Foto Webcam
   const capture = () => {
     const photo = webcamRef.current.getScreenshot();
     setImage(photo);
   };
 
-  // ========= HANDLE CHECK-IN (SELFIE + GPS) =========
+  // FULLSCREEN PREVIEW FOTO
+  const FullscreenPreview = () => {
+    if (!showPreview || !image) return null;
+
+    return (
+      <div
+        className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-50"
+        onClick={() => setShowPreview(false)}
+      >
+        <div
+          className="relative max-w-3xl w-full p-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <img
+            src={image}
+            alt="Preview Full"
+            className="w-full h-auto object-contain rounded-lg shadow-xl"
+          />
+
+          <button
+            onClick={() => setShowPreview(false)}
+            className="absolute top-3 right-3 bg-red-600 text-white px-4 py-2 rounded-lg shadow"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // HANDLE CHECK-IN (DIPERBAIKI AGAR MULTER BISA MEMBACA FILE)
   const handleCheckIn = async () => {
     if (!coords) {
       setError("Lokasi belum tersedia. Aktifkan GPS.");
@@ -67,13 +98,15 @@ function PresensiPage() {
     }
 
     try {
-      // Convert base64 -> Blob
-      const blob = await (await fetch(image)).blob();
+      // KONVERSI BASE64 → FILE
+      const response = await fetch(image);
+      const blob = await response.blob();
+      const file = new File([blob], "selfie.jpg", { type: "image/jpeg" });
 
       const formData = new FormData();
       formData.append("latitude", coords.lat);
       formData.append("longitude", coords.lng);
-      formData.append("image", blob, "selfie.jpg");
+      formData.append("image", file); // FIX UTAMA
 
       const res = await axios.post(
         "http://localhost:3001/api/presensi/check-in",
@@ -88,13 +121,13 @@ function PresensiPage() {
 
       setMessage(res.data.message);
       setError("");
-      setImage(null);   // reset foto setelah sukses
+      setImage(null);
     } catch (err) {
       setError(err.response?.data?.message || "Gagal check-in");
     }
   };
 
-  // ========= HANDLE CHECK-OUT =========
+  // HANDLE CHECK-OUT
   const handleCheckOut = async () => {
     try {
       const res = await axios.post(
@@ -106,6 +139,7 @@ function PresensiPage() {
           },
         }
       );
+
       setMessage(res.data.message);
       setError("");
     } catch (err) {
@@ -115,6 +149,9 @@ function PresensiPage() {
 
   return (
     <div className="p-4">
+
+      <FullscreenPreview />
+
       <h2 className="text-xl font-bold mb-3">Halaman Presensi (GPS + Selfie)</h2>
 
       {/* PETA */}
@@ -133,21 +170,33 @@ function PresensiPage() {
         </div>
       )}
 
-      {/* KAMERA */}
-      <div className="my-4 border rounded-lg overflow-hidden bg-black">
-        {image ? (
-          <img src={image} alt="Selfie" className="w-full" />
-        ) : (
-          <Webcam
-            audio={false}
-            ref={webcamRef}
-            screenshotFormat="image/jpeg"
-            className="w-full"
-          />
-        )}
+      {/* KAMERA / FOTO */}
+      <div className="my-4 w-full flex justify-center">
+        <div className="w-full max-w-md aspect-video bg-black rounded-xl overflow-hidden shadow-lg">
+          {image ? (
+            <img
+              src={image}
+              alt="Selfie"
+              className="w-full h-full object-cover cursor-pointer"
+              onClick={() => setShowPreview(true)}
+            />
+          ) : (
+            <Webcam
+              audio={false}
+              ref={webcamRef}
+              screenshotFormat="image/jpeg"
+              className="w-full h-full object-cover"
+              videoConstraints={{
+                facingMode: "user",
+                width: 1280,
+                height: 720,
+              }}
+            />
+          )}
+        </div>
       </div>
 
-      {/* TOMBOL AMBIL FOTO */}
+      {/* TOMBOL FOTO */}
       <div className="mb-4">
         {!image ? (
           <button
@@ -168,18 +217,15 @@ function PresensiPage() {
 
       {/* STATUS */}
       {error && (
-        <div className="bg-red-100 text-red-700 p-3 rounded mb-3">
-          {error}
-        </div>
+        <div className="bg-red-100 text-red-700 p-3 rounded mb-3">{error}</div>
       )}
-
       {message && (
         <div className="bg-green-100 text-green-700 p-3 rounded mb-3">
           {message}
         </div>
       )}
 
-      {/* BUTTON */}
+      {/* BUTTON ACTION */}
       <div className="flex flex-col gap-3">
         <button
           onClick={handleCheckIn}
