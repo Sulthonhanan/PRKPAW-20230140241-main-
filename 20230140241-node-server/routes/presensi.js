@@ -1,12 +1,24 @@
 const express = require("express");
 const router = express.Router();
 
-const { CheckIn, CheckOut, deletePresensi, updatePresensi } = require("../controllers/presensiController");
+const presensiController = require("../controllers/presensiController");
 const { verifyToken } = require("../middleware/permissionMiddleware");
 
-router.post("/check-in", verifyToken, CheckIn);
-router.post("/check-out", verifyToken, CheckOut);
-router.delete("/:id", verifyToken, deletePresensi);
-router.put("/:id", verifyToken, updatePresensi);
+// CHECK-IN dengan upload foto
+router.post(
+  "/check-in",
+  verifyToken,
+  presensiController.upload.single("image"),
+  presensiController.CheckIn
+);
+
+// CHECK-OUT
+router.post("/check-out", verifyToken, presensiController.CheckOut);
+
+// DELETE PRESENSI
+router.delete("/:id", verifyToken, presensiController.deletePresensi);
+
+// UPDATE PRESENSI
+router.put("/:id", verifyToken, presensiController.updatePresensi);
 
 module.exports = router;
