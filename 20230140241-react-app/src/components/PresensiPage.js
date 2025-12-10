@@ -4,6 +4,17 @@ import axios from "axios";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
+// Fix icon Leaflet agar marker muncul
+import L from "leaflet";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+let DefaultIcon = L.icon({
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
 function PresensiPage() {
   const [coords, setCoords] = useState(null);
   const [error, setError] = useState("");
@@ -11,7 +22,7 @@ function PresensiPage() {
 
   const token = localStorage.getItem("token");
 
-  // Fungsi mendeteksi lokasi
+  // Ambil lokasi GPS
   const getLocation = () => {
     if (!navigator.geolocation) {
       setError("Geolocation tidak didukung oleh browser.");
@@ -31,12 +42,11 @@ function PresensiPage() {
     );
   };
 
-  // Ketika component pertama kali load → ambil lokasi
   useEffect(() => {
     getLocation();
   }, []);
 
-  // Konfigurasi Axios
+  // Config axios
   const config = {
     headers: {
       Authorization: "Bearer " + token,
@@ -44,50 +54,49 @@ function PresensiPage() {
     },
   };
 
-  // ==============================
-// HANDLE CHECK-IN  
-// ==============================
-const handleCheckIn = async () => {
-  if (!coords) {
-    setError("Lokasi belum tersedia. Aktifkan GPS.");
-    return;
-  }
+  // ========= HANDLE CHECK-IN =========
+  const handleCheckIn = async () => {
+    if (!coords) {
+      setError("Lokasi belum tersedia.");
+      return;
+    }
 
-  try {
-    const res = await axios.post(
-      "http://localhost:3001/api/presensi/check-in",  // FIXED URL
-      {
-        latitude: coords.lat,
-        longitude: coords.lng,
-      },
-      config
-    );
+    try {
+      const res = await axios.post(
+        "http://localhost:3001/api/presensi/check-in",
+        {
+          latitude: coords.lat,
+          longitude: coords.lng,
+        },
+        config
+      );
 
-    setMessage(res.data.message);
-  } catch (err) {
-    setError(err.response?.data?.message || "Gagal check-in");
-  }
-};
+      setMessage(res.data.message);
+      setError("");
+    } catch (err) {
+      setError(err.response?.data?.message || "Gagal check-in");
+    }
+  };
 
-  // ==============================
-// HANDLE CHECK-OUT
-// ==============================
-const handleCheckOut = async () => {
-  try {
-    const res = await axios.post(
-      "http://localhost:3001/api/presensi/check-out",  // FIXED URL
-      {},
-      config
-    );
+  // ========= HANDLE CHECK-OUT =========
+  const handleCheckOut = async () => {
+    try {
+      const res = await axios.post(
+        "http://localhost:3001/api/presensi/check-out",
+        {},
+        config
+      );
 
-    setMessage(res.data.message);
-  } catch (err) {
-    setError(err.response?.data?.message || "Gagal check-out");
-  }
-};
+      setMessage(res.data.message);
+      setError("");
+    } catch (err) {
+      setError(err.response?.data?.message || "Gagal check-out");
+    }
+  };
 
   return (
     <div className="p-4">
+      <h2 className="text-xl font-bold mb-3">Halaman Presensi</h2>
 
       {/* PETA */}
       {coords && (
@@ -99,10 +108,9 @@ const handleCheckOut = async () => {
           >
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; OpenStreetMap contributors'
             />
             <Marker position={[coords.lat, coords.lng]}>
-              <Popup>Lokasi Presensi Anda</Popup>
+              <Popup>Lokasi Anda Saat Ini</Popup>
             </Marker>
           </MapContainer>
         </div>
@@ -121,8 +129,8 @@ const handleCheckOut = async () => {
         </div>
       )}
 
-      {/* BUTTONS */}
-      <div className="flex flex-col gap-3 mt-4">
+      {/* BUTTON */}
+      <div className="flex flex-col gap-3">
         <button
           onClick={handleCheckIn}
           className="bg-blue-600 text-white p-3 rounded-lg"

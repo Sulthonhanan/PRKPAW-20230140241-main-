@@ -15,15 +15,25 @@ function ReportPage() {
     },
   };
 
-  // ===========================
-  // HANDLE SUBMIT PENCARIAN
-  // ===========================
+  // Format tanggal agar lebih rapi
+  const formatDate = (dateString) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return date.toLocaleString("id-ID", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  };
+
+  // ==========================================
+  // SUBMIT FILTER
+  // ==========================================
   const handleSearchSubmit = async (e) => {
     e.preventDefault();
 
     try {
       const response = await axios.get(
-        "http://localhost:3000/report/daily",
+        "http://localhost:3000/report",   // FIXED URL
         {
           params: {
             nama: nama || undefined,
@@ -43,7 +53,6 @@ function ReportPage() {
 
   return (
     <div className="p-6">
-
       <h2 className="text-2xl font-bold mb-4">Laporan Presensi</h2>
 
       {/* FORM FILTER */}
@@ -86,7 +95,7 @@ function ReportPage() {
         </button>
       </form>
 
-      {/* TABEL LAPORAN */}
+      {/* TABEL */}
       <table className="w-full border">
         <thead>
           <tr className="bg-gray-200">
@@ -95,6 +104,7 @@ function ReportPage() {
             <th className="border p-2">Check-Out</th>
           </tr>
         </thead>
+
         <tbody>
           {data.length === 0 ? (
             <tr>
@@ -105,9 +115,9 @@ function ReportPage() {
           ) : (
             data.map((row) => (
               <tr key={row.id}>
-                <td className="border p-2">{row.nama}</td>
-                <td className="border p-2">{row.checkIn}</td>
-                <td className="border p-2">{row.checkOut || "-"}</td>
+                <td className="border p-2">{row.user?.nama || "-"}</td>
+                <td className="border p-2">{formatDate(row.checkIn)}</td>
+                <td className="border p-2">{formatDate(row.checkOut)}</td>
               </tr>
             ))
           )}
